@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -54,8 +55,8 @@ public class ItemController {
     
 
     // UPDATE
-    @PutMapping("/{billId}/items/{id}")
-    public ApiResponse<ItemResponse> put(
+    @PatchMapping("/{billId}/items/{id}")
+    public ApiResponse<ItemResponse> patch(
             @PathVariable String billId,
             @PathVariable String id,
             @RequestBody UpdateItemRequest request) {
@@ -71,6 +72,6 @@ public class ItemController {
             @PathVariable String billId,
             @PathVariable String id) {
         itemService.delete(billId, id);
-        return ApiResponse.success("Item berhasil dihapus", "OK");
+        return ApiResponse.success("Item berhasil dihapus", null);
     }
 }

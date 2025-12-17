@@ -47,7 +47,7 @@ public class ParticipantController {
     public ApiResponse<ParticipantResponse> getById(@PathVariable String billId, @PathVariable String id) {
         return ApiResponse.success(
                 "Participant ditemukan",
-                participantService.getById(id)
+                participantService.getById(billId, id)
         );
     }
 
@@ -68,7 +68,7 @@ public class ParticipantController {
         participantService.delete(billId, id);
         return ApiResponse.success(
                 "Participant berhasil dihapus",
-                "OK"
+                null
         );
     }
 }

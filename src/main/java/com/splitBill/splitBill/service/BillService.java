@@ -7,6 +7,7 @@ import com.splitBill.splitBill.handler.ResourceNotFoundException;
 import com.splitBill.splitBill.model.*;
 import com.splitBill.splitBill.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,16 +26,23 @@ public class BillService {
     private final ItemAssignmentRepository assignmentRepository;
     private final RestoRepository restoRepository;
 
+    private String getCurrentTenantId() {
+        User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return user.getTenantDbName();
+    }
+
     @Transactional
     public BillResponse createBill(CreateBillRequest request) {
+        String tenantId = getCurrentTenantId();
         UUID restoUuid = UUID.fromString(request.getRestoId());
 
-        Resto resto = restoRepository.findById(restoUuid)
-                .orElseThrow(() -> new ResourceNotFoundException("Resto tidak ditemukan"));
+        Resto resto = restoRepository.findByIdAndTenantId(restoUuid, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Resto tidak ditemukan untuk tenant ini"));
 
         Bill bill = new Bill();
-        bill.setResto(resto);           // PAKE OBJECT RESTO, BUKAN restoId!
+        bill.setResto(resto);
         bill.setNote(request.getNote());
+        bill.setTenantId(tenantId);
 
         bill = billRepository.save(bill);
 
@@ -43,12 +51,14 @@ public class BillService {
 
     @Transactional
     public ParticipantResponse addParticipant(String billId, AddParticipantRequest request) {
-        Bill bill = billRepository.findById(UUID.fromString(billId))
+        String tenantId = getCurrentTenantId();
+        Bill bill = billRepository.findByIdAndTenantId(UUID.fromString(billId), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Bill tidak ditemukan"));
 
         BillParticipant participant = new BillParticipant();
         participant.setBill(bill);
         participant.setName(request.getName());
+        participant.setTenantId(tenantId);
         participant = participantRepository.save(participant);
 
         return mapToParticipantResponse(participant);
@@ -56,7 +66,8 @@ public class BillService {
 
     @Transactional
     public void assignItem(String billId, String itemId, String participantId, AssignItemRequest request) {
-        Bill bill = billRepository.findById(UUID.fromString(billId))
+        String tenantId = getCurrentTenantId();
+        Bill bill = billRepository.findByIdAndTenantId(UUID.fromString(billId), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Bill tidak ditemukan"));
 
         BillItem item = billItemRepository.findById(UUID.fromString(itemId))
@@ -75,7 +86,6 @@ public class BillService {
         UUID itemUuid = UUID.fromString(itemId);
         UUID participantUuid = UUID.fromString(participantId);
 
-        // INI YANG BARU — CARI DULU, KALAU ADA UPDATE, KALAU GAK ADA BUAT BARU!
         ItemAssignment assignment = assignmentRepository
                 .findByBillItemIdAndParticipantId(itemUuid, participantUuid)
                 .orElse(new ItemAssignment());
@@ -83,13 +93,14 @@ public class BillService {
         assignment.setBillItem(item);
         assignment.setParticipant(participant);
         assignment.setQuantityTaken(request.getQuantityTaken());
-
+        assignment.setTenantId(tenantId);
         assignmentRepository.save(assignment);
     }
 
     @Transactional
     public BillResponse updateTaxService(String billId, UpdateTaxServiceRequest request) {
-        Bill bill = billRepository.findById(UUID.fromString(billId))
+        String tenantId = getCurrentTenantId();
+        Bill bill = billRepository.findByIdAndTenantId(UUID.fromString(billId), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Bill tidak ditemukan"));
 
         bill.setTaxPercent(request.getTaxPercent() != null ? request.getTaxPercent() : BigDecimal.ZERO);
@@ -101,7 +112,8 @@ public class BillService {
 
     @Transactional(readOnly = true)
     public SplitResultResponse calculateSplit(String billId) {
-        Bill bill = billRepository.findById(UUID.fromString(billId))
+        String tenantId = getCurrentTenantId();
+        Bill bill = billRepository.findByIdAndTenantId(UUID.fromString(billId), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Bill tidak ditemukan"));
 
         List<ItemAssignment> assignments = assignmentRepository.findAll().stream()
@@ -168,20 +180,36 @@ public class BillService {
         return resp;
     }
 
+    public List<Map<String, Object>> getAllBills() {
+        String tenantId = getCurrentTenantId();
+        return billRepository.findAllWithRestoByTenantId(tenantId).stream()
+                .map(bill -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", bill.getId().toString());
+                    map.put("restoName", bill.getResto().getName());
+                    map.put("note", bill.getNote() != null ? bill.getNote() : "");
+                    map.put("createdAt", bill.getCreatedAt() != null ? bill.getCreatedAt().toString() : "");
+                    return map;
+                })
+                .sorted((a, b) -> {
+                    String dateA = (String) a.get("createdAt");
+                    String dateB = (String) b.get("createdAt");
+                    return dateB.compareTo(dateA); // terbaru di atas
+                })
+                .toList();
+    }
+
     // Helper methods
     private BillResponse mapToBillResponse(Bill bill) {
         BillResponse res = new BillResponse();
         res.setId(bill.getId());
-
-        // INI VERSI FINAL — SUPPORT SOFT DELETE RESTO!
-        if (bill.getResto() != null && !bill.getResto().isDeleted()) {
-            // Resto masih aktif → tampilkan nama & id
+        
+        if (bill.getResto() != null) { // The @Where clause on Resto handles soft deletes
             res.setRestoId(bill.getResto().getId());
             res.setRestoName(bill.getResto().getName());
         } else {
-            // Resto null ATAU sudah di-soft-delete
             res.setRestoId(null);
-            res.setRestoName("Resto Dihapus");  // atau "Tanpa Resto" kalau mau
+            res.setRestoName("Resto Dihapus");
         }
 
         res.setNote(bill.getNote());
@@ -215,7 +243,8 @@ public class BillService {
 
     @Transactional(readOnly = true)
     public List<BillResponse> getByBillId(String billId) {
-        return billRepository.findById(UUID.fromString(billId))
+        String tenantId = getCurrentTenantId();
+        return billRepository.findByIdAndTenantId(UUID.fromString(billId), tenantId)
                 .stream()
                 .map(this::mapToBillResponse)
                 .toList();

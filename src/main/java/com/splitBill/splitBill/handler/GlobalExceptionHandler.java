@@ -1,5 +1,7 @@
 package com.splitBill.splitBill.handler;
 
+import com.splitBill.splitBill.handler.JwtExpiredException;
+import com.splitBill.splitBill.handler.JwtInvalidException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -32,6 +34,19 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ApiResponse<?>> handleBadRequest(BadRequestException ex) {
         return ResponseEntity.badRequest()
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    // New JWT Exception Handlers
+    @ExceptionHandler(JwtExpiredException.class)
+    public ResponseEntity<ApiResponse<?>> handleJwtExpiredException(JwtExpiredException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    @ExceptionHandler(JwtInvalidException.class)
+    public ResponseEntity<ApiResponse<?>> handleJwtInvalidException(JwtInvalidException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(ApiResponse.error(ex.getMessage()));
     }
 

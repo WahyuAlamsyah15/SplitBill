@@ -17,6 +17,9 @@ public class ItemAssignment {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(name = "tenant_id", nullable = false)
+    private String tenantId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "bill_item_id", nullable = false)
     private BillItem billItem;

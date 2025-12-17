@@ -4,6 +4,7 @@ CREATE DATABASE splitBill;
 -- 1. Tabel Resto (master resto)
 CREATE TABLE restos (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id VARCHAR(255) NOT NULL,
     name VARCHAR(150) NOT NULL UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -11,6 +12,7 @@ CREATE TABLE restos (
 -- 2. Tabel Bill (satu sesi makan)
 CREATE TABLE bills (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id VARCHAR(255) NOT NULL,
     resto_id UUID NOT NULL REFERENCES restos(id) ON DELETE RESTRICT,
     note TEXT,
     tax_percent DECIMAL(5,2) DEFAULT 0.00,
@@ -22,6 +24,7 @@ CREATE TABLE bills (
 -- 3. Item yang dibeli
 CREATE TABLE bill_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id VARCHAR(255) NOT NULL,
     bill_id UUID NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
     name VARCHAR(200) NOT NULL,
     price DECIMAL(15,2) NOT NULL,
@@ -32,6 +35,7 @@ CREATE TABLE bill_items (
 -- 4. Participants (orang yang ikut)
 CREATE TABLE bill_participants (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id VARCHAR(255) NOT NULL,
     bill_id UUID NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL
 );
@@ -39,6 +43,7 @@ CREATE TABLE bill_participants (
 -- 5. Assignment: Siapa pesan item apa
 CREATE TABLE item_assignments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id VARCHAR(255) NOT NULL,
     bill_item_id UUID NOT NULL REFERENCES bill_items(id) ON DELETE CASCADE,
     participant_id UUID NOT NULL REFERENCES bill_participants(id) ON DELETE CASCADE,
     quantity_taken INTEGER NOT NULL DEFAULT 1,
@@ -78,3 +83,18 @@ ALTER TABLE bills
 -- Atau kalau mau generated column tetap hidup, pakai BigDecimal juga:
 -- ALTER TABLE bill_items ALTER COLUMN price TYPE DECIMAL(15,2);
 -- ALTER TABLE bill_items ALTER COLUMN subtotal TYPE DECIMAL(15,2);
+
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+CREATE TABLE app_user (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    username VARCHAR(255) NOT NULL UNIQUE,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    app_user_role VARCHAR(50) NOT NULL,
+    locked BOOLEAN NOT NULL DEFAULT FALSE,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    tenant_db_name TEXT NOT NULL UNIQUE
+);
+
+

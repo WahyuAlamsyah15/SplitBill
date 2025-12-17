@@ -2,6 +2,9 @@ package com.splitBill.splitBill.repository;
 
 import com.splitBill.splitBill.model.Resto;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -10,8 +13,14 @@ import java.util.UUID;
 
 @Repository
 public interface RestoRepository extends JpaRepository<Resto, UUID> {
-    boolean existsByNameIgnoreCase(String name);
+    
+    List<Resto> findByTenantId(String tenantId);
+    
+    Optional<Resto> findByIdAndTenantId(UUID id, String tenantId);
 
-    List<Resto> findByDeletedFalse();
-    Optional<Resto> findByIdAndDeletedFalse(UUID id);
+    boolean existsByNameIgnoreCaseAndTenantId(String name, String tenantId);
+
+    @Modifying
+    @Query("DELETE FROM Resto r WHERE r.id = :id")
+    void physicalDeleteById(@Param("id") UUID id);
 }

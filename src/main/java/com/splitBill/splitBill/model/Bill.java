@@ -2,6 +2,8 @@ package com.splitBill.splitBill.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -16,9 +18,8 @@ public class Bill {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    // HAPUS INI BRAY!!!
-    // @Column(name = "resto_id", nullable = false)
-    // private UUID restoId;
+    @Column(name = "tenant_id", nullable = false)
+    private String tenantId;
 
     private String note;
 
@@ -28,11 +29,13 @@ public class Bill {
     @Column(name = "service_percent", nullable = false, precision = 5, scale = 2)
     private BigDecimal servicePercent = BigDecimal.ZERO;
 
-    @Column(name = "bill_date")
-    private LocalDateTime billDate = LocalDateTime.now();
+    @CreationTimestamp
+    @Column(name = "bill_date", updatable = false)
+    private LocalDateTime billDate;
 
+    @CreationTimestamp
     @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private LocalDateTime createdAt;
 
     @OneToMany(mappedBy = "bill", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BillItem> items = new ArrayList<>();
@@ -40,13 +43,7 @@ public class Bill {
     @OneToMany(mappedBy = "bill", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BillParticipant> participants = new ArrayList<>();
 
-    // INI YANG TETEP ADA — INI YANG PENTING!
-    @ManyToOne
-    @JoinColumn(name = "resto_id")
-    private Resto resto; // gak perlu nullable = true lagi
-
-    // Kalau lu butuh restoId buat apa-apa, pake ini aja:
-    public UUID getRestoId() {
-        return resto != null ? resto.getId() : null;
-    }
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "resto_id", nullable = false)
+    private Resto resto;
 }

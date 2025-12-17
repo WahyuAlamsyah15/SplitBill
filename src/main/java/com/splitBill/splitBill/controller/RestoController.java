@@ -28,7 +28,7 @@ public class RestoController {
     }
 
     @PostMapping
-    public ApiResponse<RestoResponse> createResto(@RequestBody CreateRestoRequest request) {
+    public ApiResponse<RestoResponse> createResto(@Valid @RequestBody CreateRestoRequest request) {
         RestoResponse resto = restoService.createResto(request.getName());
         return ApiResponse.success("Resto berhasil dibuat", resto);
     }
@@ -36,25 +36,21 @@ public class RestoController {
     @PutMapping("/{id}")
     public ApiResponse<RestoResponse> updateResto(
             @PathVariable UUID id,
-            @RequestBody UpdateRestoRequest request) {
-
-        if (request.getName() == null || request.getName().trim().isEmpty()) {
-            throw new BadRequestException("Nama resto tidak boleh kosong");
-        }
-
+            @Valid @RequestBody UpdateRestoRequest request) {
         RestoResponse updated = restoService.updateResto(id, request.getName().trim());
         return ApiResponse.success("Resto berhasil diupdate", updated);
     }
 
-    @DeleteMapping
-    public ApiResponse<String> deleteResto(@PathVariable UUID id) {
-        restoService.softDeleteResto(id);
-        return ApiResponse.success("Resto berhasil dihapus", null);
-    }
-
     @DeleteMapping("/{id}")
-    public ApiResponse<?> deleteRestoWithAllBills(@PathVariable UUID id) {
-        restoService.deleteRestoWithAllBills(id);
-        return ApiResponse.success("Resto berhasil dihapus");
+    public ApiResponse<String> deleteResto(
+            @PathVariable UUID id,
+            @RequestParam(required = false, defaultValue = "false") boolean force) {
+        if (force) {
+            restoService.deleteRestoWithAllBills(id);
+            return ApiResponse.success("Resto dan semua bill terkait berhasil dihapus secara permanen", null);
+        } else {
+            restoService.softDeleteResto(id);
+            return ApiResponse.success("Resto berhasil dihapus (soft delete)", null);
+        }
     }
 }

@@ -3,6 +3,8 @@ package com.splitBill.splitBill.service;
 import java.util.List;
 import java.util.UUID;
 
+import com.splitBill.splitBill.model.User;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +27,11 @@ public class ParticipantService {
     private final BillParticipantRepository participantRepository;
     private final BillRepository billRepository;
 
+    private String getCurrentTenantId() {
+        User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return user.getTenantDbName();
+    }
+
     private ParticipantResponse mapToParticipantResponse(BillParticipant p) {
         ParticipantResponse res = new ParticipantResponse();
         res.setId(p.getId());
@@ -32,18 +39,30 @@ public class ParticipantService {
         return res;
     }
 
-    private ParticipantResponse createEntity(String billId, AddParticipantRequest request){
-        BillParticipant participant = new BillParticipant();
-        Bill bill = billRepository.findById(UUID.fromString(billId))
-            .orElseThrow(() -> new ResourceNotFoundException("Id bill tidak ditemukan"));
+    @Transactional
+    public ParticipantResponse addParticipant(String billId, AddParticipantRequest request) {
+        String tenantId = getCurrentTenantId();
+        Bill bill = billRepository.findByIdAndTenantId(UUID.fromString(billId), tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Bill tidak ditemukan"));
 
+        BillParticipant participant = new BillParticipant();
         participant.setBill(bill);
+        participant.setTenantId(tenantId);
         participant.setName(request.getName());
         participant = participantRepository.save(participant);
         return mapToParticipantResponse(participant);
     }
 
-    public ParticipantResponse updateEntity(BillParticipant participant, UpdateParticipantRequest request){
+    @Transactional
+    public ParticipantResponse edit(String billId, String id, UpdateParticipantRequest request){
+        String tenantId = getCurrentTenantId();
+        Bill bill = billRepository.findByIdAndTenantId(UUID.fromString(billId), tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Bill tidak ditemukan"));
+
+        BillParticipant participant = participantRepository.findById(UUID.fromString(id))
+                .filter(p -> p.getBill().getId().equals(bill.getId()))
+                .orElseThrow(() -> new ResourceNotFoundException("ID participant tidak ditemukan pada bill ini"));
+
         if(request.getName() != null){
             participant.setName(request.getName());
         }
@@ -51,50 +70,38 @@ public class ParticipantService {
         return mapToParticipantResponse(participant);
     }
 
-    @Transactional
-    public ParticipantResponse addParticipant(String billId, AddParticipantRequest request) {
-        return createEntity(billId, request);
-    }
-
-    @Transactional
-    public ParticipantResponse edit(String billId, String id, UpdateParticipantRequest request){
-        BillParticipant participant = participantRepository.findById(UUID.fromString(id))
-            .orElseThrow(() -> new ResourceNotFoundException("ID participant tidak ditemukan"));
-
-        if (!participant.getBill().getId().toString().equals(billId)) {
-            throw new BadRequestException("Item tidak termasuk dalam bill ini");
-        }
-
-        return updateEntity(participant, request);
-    }
-
-    // READ - GET ALL
     public List<ParticipantResponse> getAllParticipants(String billId) {
-        Bill bill = billRepository.findById(UUID.fromString(billId))
-            .orElseThrow(() -> new ResourceNotFoundException("Bill tidak ditemukan"));
+        String tenantId = getCurrentTenantId();
+        Bill bill = billRepository.findByIdAndTenantId(UUID.fromString(billId), tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Bill tidak ditemukan"));
 
         return bill.getParticipants().stream()
                 .map(this::mapToParticipantResponse)
                 .toList();
     }
 
-    // READ - GET BY ID
-    public ParticipantResponse getById(String id) {
+    public ParticipantResponse getById(String billId, String id) {
+        String tenantId = getCurrentTenantId();
+        Bill bill = billRepository.findByIdAndTenantId(UUID.fromString(billId), tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Bill tidak ditemukan"));
+
         BillParticipant p = participantRepository.findById(UUID.fromString(id))
-            .orElseThrow(() -> new ResourceNotFoundException("Participant tidak ditemukan"));
+                .filter(participant -> participant.getBill().getId().equals(bill.getId()))
+                .orElseThrow(() -> new ResourceNotFoundException("Participant tidak ditemukan pada bill ini"));
 
         return mapToParticipantResponse(p);
     }
 
-    // DELETE
     @Transactional
     public void delete(String billId, String id) {
+        String tenantId = getCurrentTenantId();
+        Bill bill = billRepository.findByIdAndTenantId(UUID.fromString(billId), tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Bill tidak ditemukan"));
+
         BillParticipant p = participantRepository.findById(UUID.fromString(id))
-            .orElseThrow(() -> new ResourceNotFoundException("Participant tidak ditemukan"));
-        
-        if (!p.getBill().getId().toString().equals(billId)) {
-            throw new BadRequestException("Participants tidak termasuk Bill ini");
-        }
+                .filter(participant -> participant.getBill().getId().equals(bill.getId()))
+                .orElseThrow(() -> new ResourceNotFoundException("Participant tidak ditemukan pada bill ini"));
+
         participantRepository.delete(p);
     }
 }
