@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import com.splitBill.splitBill.handler.JwtExpiredException;
 import com.splitBill.splitBill.handler.JwtInvalidException;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
@@ -30,7 +31,7 @@ public class JwtUtil {
 
     @PostConstruct
     public void init() {
-        this.key = Keys.hmacShaKeyFor(secret.getBytes());
+        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
     public String generateToken(UserDetails userDetails) {

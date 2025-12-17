@@ -33,12 +33,6 @@ public class BillItem {
     @Column(nullable = false)
     private Integer quantity = 1;
 
-    @Column(nullable = false, precision = 15, scale = 2)
-    private BigDecimal subtotal = BigDecimal.ZERO;
-
-    @PrePersist
-    @PreUpdate
-    public void calculateSubtotal() {
-        this.subtotal = price.multiply(BigDecimal.valueOf(quantity));
-    }
+    @Column(name = "subtotal", insertable = false, updatable = false)
+    private BigDecimal subtotal;
 }

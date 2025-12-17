@@ -23,11 +23,19 @@ public class Bill {
 
     private String note;
 
-    @Column(name = "tax_percent", nullable = false, precision = 5, scale = 2)
-    private BigDecimal taxPercent = BigDecimal.ZERO;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tax_type", nullable = false)
+    private FeeType taxType = FeeType.PERCENT;
 
-    @Column(name = "service_percent", nullable = false, precision = 5, scale = 2)
-    private BigDecimal servicePercent = BigDecimal.ZERO;
+    @Column(name = "tax_value", nullable = false, precision = 15, scale = 2)
+    private BigDecimal taxValue = BigDecimal.ZERO;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "service_type", nullable = false)
+    private FeeType serviceType = FeeType.PERCENT;
+    
+    @Column(name = "service_value", nullable = false, precision = 15, scale = 2)
+    private BigDecimal serviceValue = BigDecimal.ZERO;
 
     @CreationTimestamp
     @Column(name = "bill_date", updatable = false)

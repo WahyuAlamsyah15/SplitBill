@@ -63,4 +63,10 @@ public class BillController {
         List<Map<String, Object>> billList = billService.getAllBills();
         return ResponseEntity.ok(ApiResponse.success("Daftar bill ditemukan", billList));
     }
+
+    @GetMapping("/{billId}")
+    public ApiResponse<BillResponse> getBillById(@PathVariable String billId) {
+        BillResponse bill = billService.getBillById(billId);
+        return ApiResponse.success("Bill ditemukan", bill);
+    }
 }

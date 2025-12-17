@@ -1,5 +1,6 @@
 package com.splitBill.splitBill.dto.response;
 
+import com.splitBill.splitBill.model.FeeType;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -14,6 +15,8 @@ public class BillResponse {
     private String note;
     private String restoName;
     private List<ItemResponse> items;
-    private BigDecimal taxPercent;
-    private BigDecimal servicePercent;
+    private FeeType taxType;
+    private BigDecimal taxValue;
+    private FeeType serviceType;
+    private BigDecimal serviceValue;
 }

@@ -98,3 +98,9 @@ CREATE TABLE app_user (
 );
 
 
+ALTER TABLE bills RENAME COLUMN tax_percent TO tax_value;
+ALTER TABLE bills RENAME COLUMN service_percent TO service_value;
+ALTER TABLE bills ALTER COLUMN tax_value TYPE DECIMAL(15,2) USING tax_value::DECIMAL(15,2);
+ALTER TABLE bills ALTER COLUMN service_value TYPE DECIMAL(15,2) USING service_value::DECIMAL(15,2);
+ALTER TABLE bills ADD COLUMN tax_type VARCHAR(255) NOT NULL DEFAULT 'PERCENT';
+ALTER TABLE bills ADD COLUMN service_type VARCHAR(255) NOT NULL DEFAULT 'PERCENT';

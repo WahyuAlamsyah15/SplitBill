@@ -103,8 +103,10 @@ public class BillService {
         Bill bill = billRepository.findByIdAndTenantId(UUID.fromString(billId), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Bill tidak ditemukan"));
 
-        bill.setTaxPercent(request.getTaxPercent() != null ? request.getTaxPercent() : BigDecimal.ZERO);
-        bill.setServicePercent(request.getServicePercent() != null ? request.getServicePercent() : BigDecimal.ZERO);
+        bill.setTaxType(request.getTaxType());
+        bill.setTaxValue(request.getTaxValue());
+        bill.setServiceType(request.getServiceType());
+        bill.setServiceValue(request.getServiceValue());
 
         bill = billRepository.save(bill);
         return mapToBillResponse(bill);
@@ -152,15 +154,29 @@ public class BillService {
             }
         }
 
-        BigDecimal taxRate = bill.getTaxPercent() != null ? bill.getTaxPercent() : BigDecimal.ZERO;
-        BigDecimal serviceRate = bill.getServicePercent() != null ? bill.getServicePercent() : BigDecimal.ZERO;
-        BigDecimal totalTax = totalItems.multiply(taxRate).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-        BigDecimal totalService = totalItems.multiply(serviceRate).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        // Calculate Tax
+        BigDecimal totalTax;
+        if (bill.getTaxType() == FeeType.PERCENT) {
+            totalTax = totalItems.multiply(bill.getTaxValue()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        } else { // FeeType.AMOUNT
+            totalTax = bill.getTaxValue();
+        }
+
+        // Calculate Service
+        BigDecimal totalService;
+        if (bill.getServiceType() == FeeType.PERCENT) {
+            totalService = totalItems.multiply(bill.getServiceValue()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        } else { // FeeType.AMOUNT
+            totalService = bill.getServiceValue();
+        }
+
         BigDecimal grandTotal = totalItems.add(totalTax).add(totalService);
 
         List<Map<String, Object>> results = new ArrayList<>();
         for (BillParticipant p : bill.getParticipants()) {
             BigDecimal subtotal = personSubtotal.getOrDefault(p.getName(), BigDecimal.ZERO);
+            
+            // Distribute tax and service proportionally by subtotal
             BigDecimal personTax = totalItems.compareTo(BigDecimal.ZERO) > 0
                     ? totalTax.multiply(subtotal).divide(totalItems, 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
             BigDecimal personService = totalItems.compareTo(BigDecimal.ZERO) > 0
@@ -213,8 +229,10 @@ public class BillService {
         }
 
         res.setNote(bill.getNote());
-        res.setTaxPercent(bill.getTaxPercent() != null ? bill.getTaxPercent() : BigDecimal.ZERO);
-        res.setServicePercent(bill.getServicePercent() != null ? bill.getServicePercent() : BigDecimal.ZERO);
+        res.setTaxType(bill.getTaxType());
+        res.setTaxValue(bill.getTaxValue());
+        res.setServiceType(bill.getServiceType());
+        res.setServiceValue(bill.getServiceValue());
 
         if (bill.getItems() != null && !bill.getItems().isEmpty()) {
             List<ItemResponse> itemResponses = bill.getItems().stream()
@@ -234,6 +252,15 @@ public class BillService {
         return res;
     }
 
+    @Transactional(readOnly = true)
+    public BillResponse getBillById(String billId) {
+        String tenantId = getCurrentTenantId();
+        Bill bill = billRepository.findByIdAndTenantId(UUID.fromString(billId), tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Bill tidak ditemukan dengan id: " + billId));
+        
+        return mapToBillResponse(bill);
+    }
+
     private ParticipantResponse mapToParticipantResponse(BillParticipant p) {
         ParticipantResponse res = new ParticipantResponse();
         res.setId(p.getId());
@@ -241,12 +268,4 @@ public class BillService {
         return res;
     }
 
-    @Transactional(readOnly = true)
-    public List<BillResponse> getByBillId(String billId) {
-        String tenantId = getCurrentTenantId();
-        return billRepository.findByIdAndTenantId(UUID.fromString(billId), tenantId)
-                .stream()
-                .map(this::mapToBillResponse)
-                .toList();
-    }
 }
