@@ -2,14 +2,19 @@ package com.splitBill.splitBill;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
+import org.springframework.web.client.RestTemplate;
 
 @SpringBootApplication
 public class SplitBillApplication {
 
-    public static void main(String[] args) {
-        SpringApplication.run(SplitBillApplication.class, args);
-        System.out.println("SplitBill Resto Backend BERHASIL JALAN di PORT 7000!");
-        System.out.println("Swagger UI  → http://localhost:7000/swagger-ui.html");
-        System.out.println("API Docs    → http://localhost:7000/api-docs");
-    }
+	public static void main(String[] args) {
+		SpringApplication.run(SplitBillApplication.class, args);
+	}
+
+	@Bean
+	public RestTemplate restTemplate() {
+		return new RestTemplate();
+	}
+
 }
