@@ -47,7 +47,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS) // Use stateless sessions for JWT
             )
-            .authenticationProvider(authenticationProvider())
+            .authenticationProvider(authenticationProvider());
             // .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
