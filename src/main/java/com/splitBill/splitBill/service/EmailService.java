@@ -48,7 +48,7 @@ public class EmailService {
 
         // IMPORTANT: Replace with your verified sender email in Resend
         // You must have verified this email address or its domain in Resend
-        String fromEmail = "alamsyahwahyu749@gmail.com"; 
+        String fromEmail = "wahyualamsyahjk06@gmail.com"; 
 
         ResendEmailRequest request = new ResendEmailRequest(fromEmail, to, subject, text);
         HttpEntity<ResendEmailRequest> entity = new HttpEntity<>(request, headers);
