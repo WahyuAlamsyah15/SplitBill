@@ -13,7 +13,9 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "restos")
+@Table(name = "restos", uniqueConstraints = {
+    @UniqueConstraint(columnNames = {"name", "tenant_id"})
+})
 @Data
 @NoArgsConstructor
 @SQLDelete(sql = "UPDATE restos SET deleted = true WHERE id = ?")
@@ -27,7 +29,7 @@ public class Resto {
     @Column(name = "tenant_id", nullable = false)
     private String tenantId;
 
-    @Column(nullable = false, unique = true, length = 150)
+    @Column(nullable = false, length = 150)
     private String name;
 
     @CreationTimestamp

@@ -1,6 +1,5 @@
 package com.splitBill.splitBill.config;
 
-
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,6 +16,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.splitBill.splitBill.service.JwtUtil;
 import com.splitBill.splitBill.service.UserDetailsServiceImpl;
+import com.splitBill.splitBill.service.TokenBlacklistService;
+import com.splitBill.splitBill.handler.JwtInvalidException;
 
 import java.io.IOException;
 
@@ -31,6 +32,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Autowired
     private UserDetailsServiceImpl userDetailsService;
 
+    @Autowired
+    private TokenBlacklistService tokenBlacklistService; // Inject TokenBlacklistService
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
@@ -41,13 +45,24 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             token = authHeader.substring(7);
+
+            // NEW: Check if token is blacklisted
+            if (tokenBlacklistService.isTokenBlacklisted(token)) {
+                logger.warn("Attempt to use blacklisted token: {}", token);
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // 401
+                response.getWriter().write("Token is blacklisted.");
+                return; // Stop the filter chain
+            }
+
             try {
                 username = jwtUtil.extractUsername(token);
                 logger.debug("Successfully extracted username: {} from token.", username);
             } catch (Exception e) {
                 logger.error("Error extracting username from token: {}", e.getMessage());
-                // This exception means the token is likely invalid or malformed.
-                // We should ensure the security context remains clear.
+                // Set response status to UNAUTHORIZED for invalid/malformed tokens
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.getWriter().write("Invalid or expired token.");
+                return; // Stop the filter chain
             }
         }
 
@@ -62,9 +77,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 logger.debug("Successfully authenticated user: {}", username);
             } else {
                 logger.debug("Token validation failed for user: {}", username);
+                // Also explicitly reject if validation fails
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.getWriter().write("Invalid or expired token.");
+                return; // Stop the filter chain
             }
         } else if (username == null && authHeader != null && authHeader.startsWith("Bearer ")) {
-            logger.debug("Could not extract username or SecurityContext already contains authentication for token.");
+            // This path would be hit if extractUsername fails, but we now handle that explicitly above.
+            // Or if SecurityContext already contains authentication - which means token was valid
+            // but we won't try to re-authenticate.
+             logger.debug("Authentication not performed, possibly due to prior context or missing token in this path.");
         } else if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             logger.debug("No Bearer token found in Authorization header.");
         }

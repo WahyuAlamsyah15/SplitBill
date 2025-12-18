@@ -42,4 +42,9 @@ public class UserService {
     public User updateUser(User user) {
         return userRepository.save(user);
     }
+
+    public User updatePassword(User user, String newPassword) {
+        user.setPassword(passwordEncoder.encode(newPassword));
+        return userRepository.save(user);
+    }
 }

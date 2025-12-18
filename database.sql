@@ -104,3 +104,6 @@ ALTER TABLE bills ALTER COLUMN tax_value TYPE DECIMAL(15,2) USING tax_value::DEC
 ALTER TABLE bills ALTER COLUMN service_value TYPE DECIMAL(15,2) USING service_value::DECIMAL(15,2);
 ALTER TABLE bills ADD COLUMN tax_type VARCHAR(255) NOT NULL DEFAULT 'PERCENT';
 ALTER TABLE bills ADD COLUMN service_type VARCHAR(255) NOT NULL DEFAULT 'PERCENT';
+SELECT conname FROM pg_constraint WHERE conrelid = 'restos'::regclass AND contype = 'u';
+ALTER TABLE restos DROP CONSTRAINT IF EXISTS restos_name_key;
+ALTER TABLE restos ADD CONSTRAINT uk_restos_name_tenant_id UNIQUE (name, tenant_id);
