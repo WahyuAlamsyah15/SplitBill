@@ -41,14 +41,14 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable()) // Disable CSRF for stateless API
             .exceptionHandling(exception -> exception.authenticationEntryPoint(jwtAuthEntryPoint))
             .authorizeHttpRequests(authorize -> authorize
-                .requestMatchers("/api/auth/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll() // Public endpoints for registration and login, and Swagger UI
-                .anyRequest().authenticated() // All other requests require authentication
+                .anyRequest().permitAll() // Temporarily permit all requests for debugging
             )
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS) // Use stateless sessions for JWT
             )
-            .authenticationProvider(authenticationProvider());
-            // .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+            // .authenticationProvider(authenticationProvider()) // Comment out authentication provider
+            // .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class) // JwtAuthFilter already commented out
+            ;
 
         return http.build();
     }
