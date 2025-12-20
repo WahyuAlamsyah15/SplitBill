@@ -264,8 +264,13 @@ public class BillService {
     @Transactional
     public void deleteBill(String billId) {
         String tenantId = getCurrentTenantId();
-        Bill bill = billRepository.findByIdAndTenantId(UUID.fromString(billId), tenantId)
+        UUID billUuid = UUID.fromString(billId);
+        
+        Bill bill = billRepository.findByIdAndTenantId(billUuid, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Bill tidak ditemukan dengan id: " + billId));
+        
+        // Explicitly delete all assignments related to this bill first
+        assignmentRepository.deleteAllByBillId(billUuid);
         
         billRepository.delete(bill);
     }

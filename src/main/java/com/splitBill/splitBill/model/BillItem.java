@@ -5,6 +5,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -35,4 +37,7 @@ public class BillItem {
 
     @Column(name = "subtotal", insertable = false, updatable = false)
     private BigDecimal subtotal;
+
+    @OneToMany(mappedBy = "billItem", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ItemAssignment> assignments = new ArrayList<>();
 }

@@ -53,7 +53,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
     public ResponseEntity<ApiResponse<?>> handleAuthenticationException(org.springframework.security.core.AuthenticationException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error("Authentication failed: Invalid credentials"));
+                .body(ApiResponse.error("Email atau password yang Anda masukkan salah."));
     }
 
     @ExceptionHandler(Exception.class)
