@@ -27,7 +27,7 @@ public class EmailService {
         String text = "Halo,\n\nTerima kasih telah mendaftar. Silakan klik tautan di bawah ini untuk memverifikasi alamat email Anda:\n" + verificationLink + "\n\nTautan ini berlaku selama 24 jam.\n\nSalam,\nTim SplitBill";
 
         // IMPORTANT: Replace with your verified sender email in SendGrid
-        String fromEmailAddress = "your_verified_sender@example.com";
+        String fromEmailAddress = "alamsyahwahyu749@gmail.com";
         String fromEmailName = "SplitBill App";
 
         Email from = new Email(fromEmailAddress, fromEmailName);
