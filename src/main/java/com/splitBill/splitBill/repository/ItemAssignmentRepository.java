@@ -1,8 +1,11 @@
 package com.splitBill.splitBill.repository;
 
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.splitBill.splitBill.model.ItemAssignment;
 
 import java.util.List;
 import java.util.Optional;
