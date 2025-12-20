@@ -88,13 +88,13 @@ public class AuthController {
 
     @PostMapping("/request-password-reset")
     public ResponseEntity<ApiResponse<?>> requestPasswordReset(@Valid @RequestBody EmailRequest request) {
-        // TODO: Refactor this to use the new token-based system
-        throw new UnsupportedOperationException("Password reset is not yet implemented with the new token system.");
+        userService.initiatePasswordReset(request.getEmail());
+        return new ResponseEntity<>(ApiResponse.success("If an account with that email exists, a password reset link has been sent."), HttpStatus.OK);
     }
 
     @PostMapping("/reset-password")
     public ResponseEntity<ApiResponse<?>> resetPassword(@Valid @RequestBody PasswordResetRequest request) {
-        // TODO: Refactor this to use the new token-based system
-        throw new UnsupportedOperationException("Password reset is not yet implemented with the new token system.");
+        userService.resetPasswordWithToken(request.getToken(), request.getNewPassword());
+        return new ResponseEntity<>(ApiResponse.success("Password has been reset successfully."), HttpStatus.OK);
     }
 }

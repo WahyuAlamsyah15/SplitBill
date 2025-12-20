@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.splitBill.splitBill.dto.request.RegistrationRequest;
 import com.splitBill.splitBill.dto.temp.StagedRegistration;
 import com.splitBill.splitBill.handler.BadRequestException;
+import com.splitBill.splitBill.handler.ResourceNotFoundException;
+import com.splitBill.splitBill.model.TokenType;
 import com.splitBill.splitBill.model.User;
 import com.splitBill.splitBill.repository.UserRepository;
 
@@ -62,7 +64,7 @@ public class UserService {
             String redisKey = REGISTRATION_PREFIX + registrationRequest.getEmail();
             redisTemplate.opsForValue().set(redisKey, stagedUserJson, REGISTRATION_EXPIRATION);
 
-            String token = verificationTokenService.generateAndStoreToken(registrationRequest.getEmail());
+            String token = verificationTokenService.generateAndStoreToken(registrationRequest.getEmail(), TokenType.EMAIL_VERIFICATION);
             emailService.sendVerificationLinkEmail(registrationRequest.getEmail(), token);
 
         } catch (JsonProcessingException e) {
@@ -72,7 +74,7 @@ public class UserService {
 
     @Transactional
     public void confirmVerification(String token) {
-        String email = verificationTokenService.getEmailByTokenAndValidate(token);
+        String email = verificationTokenService.getEmailByTokenAndValidate(token, TokenType.EMAIL_VERIFICATION);
         if (email == null) {
             throw new BadRequestException("Invalid or expired verification token.");
         }
@@ -93,15 +95,38 @@ public class UserService {
             user.setPassword(stagedUser.getHashedPassword()); // Already hashed
             user.setEnabled(true); // Enable user upon successful verification
 
-            saveUser(user); // Use the original saveUser method to set tenant and save
+            saveUser(user);
 
-            redisTemplate.delete(redisKey); // Clean up staged data
+            redisTemplate.delete(redisKey);
 
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Failed to deserialize staged registration data", e);
         }
     }
+
+    @Transactional
+    public void initiatePasswordReset(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
+
+        String token = verificationTokenService.generateAndStoreToken(user.getEmail(), TokenType.PASSWORD_RESET);
+        emailService.sendPasswordResetLinkEmail(user.getEmail(), token);
+    }
     
+    @Transactional
+    public void resetPasswordWithToken(String token, String newPassword) {
+        String email = verificationTokenService.getEmailByTokenAndValidate(token, TokenType.PASSWORD_RESET);
+        if (email == null) {
+            throw new BadRequestException("Invalid or expired password reset token.");
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+
     public User saveUser(User user) {
         if (user.getTenantDbName() == null || user.getTenantDbName().isEmpty()) {
             String tenantName = "tenant-" + user.getUsername().replaceAll("\\s+", "").toLowerCase();
@@ -126,8 +151,9 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    public User updatePassword(User user, String newPassword) {
-        user.setPassword(passwordEncoder.encode(newPassword));
-        return userRepository.save(user);
-    }
+    // This is now replaced by resetPasswordWithToken
+    // public User updatePassword(User user, String newPassword) {
+    //     user.setPassword(passwordEncoder.encode(newPassword));
+    //     return userRepository.save(user);
+    // }
 }
