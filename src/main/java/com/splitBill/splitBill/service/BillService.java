@@ -87,10 +87,38 @@ public class BillService {
         UUID itemUuid = UUID.fromString(itemId);
         UUID participantUuid = UUID.fromString(participantId);
 
-        ItemAssignment assignment = assignmentRepository
-                .findByBillItemIdAndParticipantId(itemUuid, participantUuid)
-                .orElse(new ItemAssignment());
+        // Validasi quantityTaken
+        if (request.getQuantityTaken() < 0) {
+            throw new BadRequestException("Quantity taken tidak bisa kurang dari 0");
+        }
 
+        ItemAssignment existingAssignment = assignmentRepository
+                .findByBillItemIdAndParticipantId(itemUuid, participantUuid)
+                .orElse(null);
+
+        // Jika quantityTaken adalah 0, hapus assignment jika ada
+        if (request.getQuantityTaken() == 0) {
+            if (existingAssignment != null) {
+                assignmentRepository.delete(existingAssignment);
+            }
+            return; // Berhenti di sini, tidak perlu validasi lebih lanjut atau simpan
+        }
+
+        // Hitung total quantityTaken saat ini untuk item ini (tidak termasuk assignment yang sedang diubah)
+        int currentTotalQuantityTaken = assignmentRepository.findAll().stream()
+                .filter(a -> a.getBillItem().getId().equals(itemUuid) && !a.getParticipant().getId().equals(participantUuid))
+                .mapToInt(ItemAssignment::getQuantityTaken)
+                .sum();
+
+        // Tambahkan quantityTaken yang baru/diperbarui
+        int newTotalQuantityTaken = currentTotalQuantityTaken + request.getQuantityTaken();
+
+        // Validasi bahwa total quantityTaken tidak melebihi quantity item yang tersedia
+        if (newTotalQuantityTaken > item.getQuantity()) {
+            throw new BadRequestException("Total quantity taken untuk item '" + item.getName() + "' melebihi quantity yang tersedia. Maksimal: " + item.getQuantity());
+        }
+
+        ItemAssignment assignment = (existingAssignment != null) ? existingAssignment : new ItemAssignment();
         assignment.setBillItem(item);
         assignment.setParticipant(participant);
         assignment.setQuantityTaken(request.getQuantityTaken());
