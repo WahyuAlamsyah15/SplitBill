@@ -261,6 +261,15 @@ public class BillService {
         return mapToBillResponse(bill);
     }
 
+    @Transactional
+    public void deleteBill(String billId) {
+        String tenantId = getCurrentTenantId();
+        Bill bill = billRepository.findByIdAndTenantId(UUID.fromString(billId), tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Bill tidak ditemukan dengan id: " + billId));
+        
+        billRepository.delete(bill);
+    }
+
     private ParticipantResponse mapToParticipantResponse(BillParticipant p) {
         ParticipantResponse res = new ParticipantResponse();
         res.setId(p.getId());

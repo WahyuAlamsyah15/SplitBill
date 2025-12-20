@@ -69,4 +69,10 @@ public class BillController {
         BillResponse bill = billService.getBillById(billId);
         return ApiResponse.success("Bill ditemukan", bill);
     }
+
+    @DeleteMapping("/{billId}")
+    public ApiResponse<Void> deleteBill(@PathVariable String billId) {
+        billService.deleteBill(billId);
+        return ApiResponse.success("Bill berhasil dihapus", null);
+    }
 }
