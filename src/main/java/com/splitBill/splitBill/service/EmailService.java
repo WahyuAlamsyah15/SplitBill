@@ -21,14 +21,15 @@ public class EmailService {
     @Value("${frontend.base-url}")
     private String frontendBaseUrl;
 
+    @Value("${sendgrid.from-email}")
+    private String fromEmailAddress;
+
     public void sendVerificationLinkEmail(String to, String token) {
         String subject = "Verifikasi Email Anda untuk SplitBill";
         String verificationLink = frontendBaseUrl + "/verify-account?token=" + token; // Changed to verify-account
         String text = "Halo,\n\nTerima kasih telah mendaftar. Silakan klik tautan di bawah ini untuk memverifikasi alamat email Anda:\n" + verificationLink + "\n\nTautan ini berlaku selama 24 jam.\n\nSalam,\nTim SplitBill";
 
-        // IMPORTANT: Replace with your verified sender email in SendGrid
-        String fromEmailAddress = "alamsyahwahyu749@gmail.com";
-        String fromEmailName = "SplitBill App";
+        String fromEmailName = "SplitBill App"; // You can externalize this as well if needed
 
         Email from = new Email(fromEmailAddress, fromEmailName);
         Email toEmail = new Email(to);
@@ -61,8 +62,7 @@ public class EmailService {
         String resetLink = frontendBaseUrl + "/reset-password?token=" + token;
         String text = "Halo,\n\nKami menerima permintaan untuk mereset kata sandi akun Anda. Silakan klik tautan di bawah ini untuk mengatur ulang kata sandi Anda:\n" + resetLink + "\n\nTautan ini berlaku selama 1 jam.\n\nJika Anda tidak meminta reset kata sandi, harap abaikan email ini.\n\nSalam,\nTim SplitBill";
 
-        String fromEmailAddress = "your_verified_sender@example.com";
-        String fromEmailName = "SplitBill App";
+        String fromEmailName = "SplitBill App"; // You can externalize this as well if needed
 
         Email from = new Email(fromEmailAddress, fromEmailName);
         Email toEmail = new Email(to);
