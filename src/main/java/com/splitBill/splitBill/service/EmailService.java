@@ -1,24 +1,29 @@
 package com.splitBill.splitBill.service;
 
-import com.mailjet.client.ClientOptions;
-import com.mailjet.client.MailjetClient;
-import com.mailjet.client.MailjetRequest;
-import com.mailjet.client.MailjetResponse;
-import com.mailjet.client.resource.Emailv31;
 import com.splitBill.splitBill.model.OtpPurpose;
-import org.json.JSONArray;
-import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.HttpStatusCodeException;
 
 @Service
 public class EmailService {
 
-    @Value("${mailjet.api-key}")
-    private String mailjetApiKey;
+    @Autowired
+    private RestTemplate restTemplate;
 
-    @Value("${mailjet.secret-key}")
-    private String mailjetSecretKey;
+    @Value("${elasticemail.api-key}")
+    private String elasticEmailApiKey;
+
+    @Value("${elasticemail.api-endpoint}")
+    private String elasticEmailApiEndpoint;
 
     public void sendOtpEmail(String to, String otp, OtpPurpose purpose) {
         String subject;
@@ -39,42 +44,36 @@ public class EmailService {
                 break;
         }
 
-        // IMPORTANT: Replace with your verified sender email in Mailjet
-        String fromEmailAddress = "alamsyahwahyu749@gmail.com";
-        String fromEmailName = "SplitBill App";
+        // IMPORTANT: Replace with your verified sender email in Elastic Email
+        String fromEmailAddress = "wahyualamsyahjk06@gmail.com";
 
-        System.out.println("Using Mailjet API Key starting with: " + mailjetApiKey.substring(0, Math.min(mailjetApiKey.length(), 4)));
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-        ClientOptions options = ClientOptions.builder()
-                .apiKey(mailjetApiKey)
-                .apiSecretKey(mailjetSecretKey)
-                .build();
+        MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
+        map.add("apikey", elasticEmailApiKey);
+        map.add("subject", subject);
+        map.add("from", fromEmailAddress);
+        map.add("to", to);
+        map.add("bodyText", text);
+        map.add("isTransactional", "true");
 
-        MailjetClient client = new MailjetClient(options);
-
-        MailjetRequest request = new MailjetRequest(Emailv31.resource)
-                .property(Emailv31.MESSAGES, new JSONArray()
-                        .put(new JSONObject()
-                                .put(Emailv31.Message.FROM, new JSONObject()
-                                        .put("Email", fromEmailAddress)
-                                        .put("Name", fromEmailName))
-                                .put(Emailv31.Message.TO, new JSONArray()
-                                        .put(new JSONObject()
-                                                .put("Email", to)))
-                                .put(Emailv31.Message.SUBJECT, subject)
-                                .put(Emailv31.Message.TEXTPART, text)));
+        HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(map, headers);
 
         try {
-            MailjetResponse response = client.post(request);
-            if (response.getStatus() == 200) {
-                 System.out.println("OTP email sent successfully to " + to + " via Mailjet API for " + purpose.name());
+            ResponseEntity<String> response = restTemplate.postForEntity(elasticEmailApiEndpoint, entity, String.class);
+            if (response.getStatusCode().is2xxSuccessful()) {
+                System.out.println("OTP email sent successfully to " + to + " via Elastic Email API for " + purpose.name());
             } else {
-                System.err.println("Failed to send OTP email via Mailjet API. Status: " + response.getStatus() + ", Data: " + response.getData());
-                 throw new RuntimeException("Failed to send OTP email via Mailjet API.");
+                System.err.println("Failed to send OTP email via Elastic Email API. Status: " + response.getStatusCode() + ", Body: " + response.getBody());
+                throw new RuntimeException("Failed to send OTP email via Elastic Email API.");
             }
+        } catch (HttpStatusCodeException e) {
+            System.err.println("Error sending OTP email via Elastic Email API. Status: " + e.getStatusCode() + ", Response: " + e.getResponseBodyAsString());
+            throw new RuntimeException("Error sending OTP email via Elastic Email API", e);
         } catch (Exception e) {
-            System.err.println("Unexpected error sending OTP email via Mailjet API: " + e.getMessage());
-            throw new RuntimeException("Unexpected error sending OTP email via Mailjet API", e);
+            System.err.println("Unexpected error sending OTP email via Elastic Email API: " + e.getMessage());
+            throw new RuntimeException("Unexpected error sending OTP email via Elastic Email API", e);
         }
     }
 }
