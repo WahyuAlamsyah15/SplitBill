@@ -100,7 +100,11 @@
 			<groupId>org.springframework.session</groupId>
 			<artifactId>spring-session-data-redis</artifactId>
 		</dependency>
-        <!-- Mail -->
+        		<dependency>
+        			<groupId>com.sendgrid</groupId>
+        			<artifactId>sendgrid-java</artifactId>
+        			<version>4.6.8</version>
+        		</dependency>        <!-- Mail -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-mail</artifactId>

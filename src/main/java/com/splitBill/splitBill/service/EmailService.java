@@ -1,67 +1,58 @@
 package com.splitBill.splitBill.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import com.sendgrid.Method;
+import com.sendgrid.Request;
+import com.sendgrid.Response;
+import com.sendgrid.SendGrid;
+import com.sendgrid.helpers.mail.Mail;
+import com.sendgrid.helpers.mail.objects.Content;
+import com.sendgrid.helpers.mail.objects.Email;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.web.client.HttpStatusCodeException;
+
+import java.io.IOException;
 
 @Service
 public class EmailService {
 
-    @Autowired
-    private RestTemplate restTemplate;
-
-    @Value("${elasticemail.api-key}")
-    private String elasticEmailApiKey;
-
-    @Value("${elasticemail.api-endpoint}")
-    private String elasticEmailApiEndpoint;
+    @Value("${sendgrid.api-key}")
+    private String sendGridApiKey;
 
     @Value("${frontend.base-url}")
     private String frontendBaseUrl;
 
     public void sendVerificationLinkEmail(String to, String token) {
         String subject = "Verifikasi Email Anda untuk SplitBill";
-        String verificationLink = frontendBaseUrl + "/verify-email?token=" + token;
+        String verificationLink = frontendBaseUrl + "/verify-account?token=" + token; // Changed to verify-account
         String text = "Halo,\n\nTerima kasih telah mendaftar. Silakan klik tautan di bawah ini untuk memverifikasi alamat email Anda:\n" + verificationLink + "\n\nTautan ini berlaku selama 24 jam.\n\nSalam,\nTim SplitBill";
 
-        // IMPORTANT: Replace with your verified sender email in Elastic Email
-        String fromEmailAddress = "wahyualamsyahjk06@gmail.com";
+        // IMPORTANT: Replace with your verified sender email in SendGrid
+        String fromEmailAddress = "your_verified_sender@example.com";
+        String fromEmailName = "SplitBill App";
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        Email from = new Email(fromEmailAddress, fromEmailName);
+        Email toEmail = new Email(to);
+        Content content = new Content("text/plain", text);
+        Mail mail = new Mail(from, subject, toEmail, content);
 
-        MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
-        map.add("apikey", elasticEmailApiKey);
-        map.add("subject", subject);
-        map.add("from", fromEmailAddress);
-        map.add("to", to);
-        map.add("bodyText", text);
-        map.add("isTransactional", "true");
-
-        HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(map, headers);
+        SendGrid sg = new SendGrid(sendGridApiKey);
+        Request request = new Request();
 
         try {
-            ResponseEntity<String> response = restTemplate.postForEntity(elasticEmailApiEndpoint, entity, String.class);
-            if (response.getStatusCode().is2xxSuccessful()) {
-                System.out.println("Verification link email sent successfully to " + to + " via Elastic Email API");
+            request.setMethod(Method.POST);
+            request.setEndpoint("mail/send");
+            request.setBody(mail.build());
+            Response response = sg.api(request);
+
+            if (response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
+                System.out.println("Verification link email sent successfully to " + to + " via SendGrid API");
             } else {
-                System.err.println("Failed to send verification email via Elastic Email API. Status: " + response.getStatusCode() + ", Body: " + response.getBody());
-                throw new RuntimeException("Failed to send verification email via Elastic Email API.");
+                System.err.println("Failed to send verification email via SendGrid API. Status: " + response.getStatusCode() + ", Body: " + response.getBody());
+                throw new RuntimeException("Failed to send verification email via SendGrid API.");
             }
-        } catch (HttpStatusCodeException e) {
-            System.err.println("Error sending verification email via Elastic Email API. Status: " + e.getStatusCode() + ", Response: " + e.getResponseBodyAsString());
-            throw new RuntimeException("Error sending verification email via Elastic Email API", e);
-        } catch (Exception e) {
-            System.err.println("Unexpected error sending verification email via Elastic Email API: " + e.getMessage());
-            throw new RuntimeException("Unexpected error sending verification email via Elastic Email API", e);
+        } catch (IOException e) {
+            System.err.println("Error sending verification email via SendGrid API: " + e.getMessage());
+            throw new RuntimeException("Error sending verification email via SendGrid API", e);
         }
     }
 
@@ -70,35 +61,32 @@ public class EmailService {
         String resetLink = frontendBaseUrl + "/reset-password?token=" + token;
         String text = "Halo,\n\nKami menerima permintaan untuk mereset kata sandi akun Anda. Silakan klik tautan di bawah ini untuk mengatur ulang kata sandi Anda:\n" + resetLink + "\n\nTautan ini berlaku selama 1 jam.\n\nJika Anda tidak meminta reset kata sandi, harap abaikan email ini.\n\nSalam,\nTim SplitBill";
 
-        String fromEmailAddress = "wahyualamsyahjk06@gmail.com";
+        String fromEmailAddress = "your_verified_sender@example.com";
+        String fromEmailName = "SplitBill App";
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        Email from = new Email(fromEmailAddress, fromEmailName);
+        Email toEmail = new Email(to);
+        Content content = new Content("text/plain", text);
+        Mail mail = new Mail(from, subject, toEmail, content);
 
-        MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
-        map.add("apikey", elasticEmailApiKey);
-        map.add("subject", subject);
-        map.add("from", fromEmailAddress);
-        map.add("to", to);
-        map.add("bodyText", text);
-        map.add("isTransactional", "true");
-
-        HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(map, headers);
+        SendGrid sg = new SendGrid(sendGridApiKey);
+        Request request = new Request();
 
         try {
-            ResponseEntity<String> response = restTemplate.postForEntity(elasticEmailApiEndpoint, entity, String.class);
-            if (response.getStatusCode().is2xxSuccessful()) {
-                System.out.println("Password reset email sent successfully to " + to + " via Elastic Email API");
+            request.setMethod(Method.POST);
+            request.setEndpoint("mail/send");
+            request.setBody(mail.build());
+            Response response = sg.api(request);
+
+            if (response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
+                System.out.println("Password reset email sent successfully to " + to + " via SendGrid API");
             } else {
-                System.err.println("Failed to send password reset email via Elastic Email API. Status: " + response.getStatusCode() + ", Body: " + response.getBody());
-                throw new RuntimeException("Failed to send password reset email via Elastic Email API.");
+                System.err.println("Failed to send password reset email via SendGrid API. Status: " + response.getStatusCode() + ", Body: " + response.getBody());
+                throw new RuntimeException("Failed to send password reset email via SendGrid API.");
             }
-        } catch (HttpStatusCodeException e) {
-            System.err.println("Error sending password reset email via Elastic Email API. Status: " + e.getStatusCode() + ", Response: " + e.getResponseBodyAsString());
-            throw new RuntimeException("Error sending password reset email via Elastic Email API", e);
-        } catch (Exception e) {
-            System.err.println("Unexpected error sending password reset email via Elastic Email API: " + e.getMessage());
-            throw new RuntimeException("Unexpected error sending password reset email via Elastic Email API", e);
+        } catch (IOException e) {
+            System.err.println("Error sending password reset email via SendGrid API: " + e.getMessage());
+            throw new RuntimeException("Error sending password reset email via SendGrid API", e);
         }
     }
 }
