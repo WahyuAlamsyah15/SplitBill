@@ -1,6 +1,5 @@
 package com.splitBill.splitBill.service;
 
-import com.splitBill.splitBill.model.OtpPurpose;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -25,24 +24,13 @@ public class EmailService {
     @Value("${elasticemail.api-endpoint}")
     private String elasticEmailApiEndpoint;
 
-    public void sendOtpEmail(String to, String otp, OtpPurpose purpose) {
-        String subject;
-        String text;
+    @Value("${frontend.base-url}")
+    private String frontendBaseUrl;
 
-        switch (purpose) {
-            case REGISTRATION:
-                subject = "Verifikasi Email Anda - Kode OTP";
-                text = "Halo,\n\nTerima kasih telah mendaftar. Kode OTP Anda untuk verifikasi email adalah: " + otp + "\n\nKode ini berlaku selama 5 menit.\n\nSalam,\nTim SplitBill";
-                break;
-            case PASSWORD_RESET:
-                subject = "Permintaan Reset Kata Sandi - Kode OTP";
-                text = "Halo,\n\nKami menerima permintaan untuk mereset kata sandi akun Anda. Kode OTP Anda adalah: " + otp + "\n\nKode ini berlaku selama 5 menit.\n\nJika Anda tidak meminta reset kata sandi, harap abaikan email ini.\n\nSalam,\nTim SplitBill";
-                break;
-            default:
-                subject = "Kode OTP Anda";
-                text = "Halo,\n\nKode OTP Anda adalah: " + otp + "\n\nKode ini berlaku selama 5 menit.\n\nSalam,\nTim SplitBill";
-                break;
-        }
+    public void sendVerificationLinkEmail(String to, String token) {
+        String subject = "Verifikasi Email Anda untuk SplitBill";
+        String verificationLink = frontendBaseUrl + "/verify-email?token=" + token;
+        String text = "Halo,\n\nTerima kasih telah mendaftar. Silakan klik tautan di bawah ini untuk memverifikasi alamat email Anda:\n" + verificationLink + "\n\nTautan ini berlaku selama 24 jam.\n\nSalam,\nTim SplitBill";
 
         // IMPORTANT: Replace with your verified sender email in Elastic Email
         String fromEmailAddress = "wahyualamsyahjk06@gmail.com";
@@ -63,17 +51,17 @@ public class EmailService {
         try {
             ResponseEntity<String> response = restTemplate.postForEntity(elasticEmailApiEndpoint, entity, String.class);
             if (response.getStatusCode().is2xxSuccessful()) {
-                System.out.println("OTP email sent successfully to " + to + " via Elastic Email API for " + purpose.name());
+                System.out.println("Verification link email sent successfully to " + to + " via Elastic Email API");
             } else {
-                System.err.println("Failed to send OTP email via Elastic Email API. Status: " + response.getStatusCode() + ", Body: " + response.getBody());
-                throw new RuntimeException("Failed to send OTP email via Elastic Email API.");
+                System.err.println("Failed to send verification email via Elastic Email API. Status: " + response.getStatusCode() + ", Body: " + response.getBody());
+                throw new RuntimeException("Failed to send verification email via Elastic Email API.");
             }
         } catch (HttpStatusCodeException e) {
-            System.err.println("Error sending OTP email via Elastic Email API. Status: " + e.getStatusCode() + ", Response: " + e.getResponseBodyAsString());
-            throw new RuntimeException("Error sending OTP email via Elastic Email API", e);
+            System.err.println("Error sending verification email via Elastic Email API. Status: " + e.getStatusCode() + ", Response: " + e.getResponseBodyAsString());
+            throw new RuntimeException("Error sending verification email via Elastic Email API", e);
         } catch (Exception e) {
-            System.err.println("Unexpected error sending OTP email via Elastic Email API: " + e.getMessage());
-            throw new RuntimeException("Unexpected error sending OTP email via Elastic Email API", e);
+            System.err.println("Unexpected error sending verification email via Elastic Email API: " + e.getMessage());
+            throw new RuntimeException("Unexpected error sending verification email via Elastic Email API", e);
         }
     }
 }
