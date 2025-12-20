@@ -12,6 +12,7 @@ import java.util.*;
 @Table(name = "bills")
 @Data
 @NoArgsConstructor
+@EqualsAndHashCode(exclude = {"items", "participants"}) // Exclude collections from equals/hashCode
 public class Bill {
 
     @Id
@@ -46,10 +47,10 @@ public class Bill {
     private LocalDateTime createdAt;
 
     @OneToMany(mappedBy = "bill", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<BillItem> items = new ArrayList<>();
+    private Set<BillItem> items = new HashSet<>();
 
     @OneToMany(mappedBy = "bill", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<BillParticipant> participants = new ArrayList<>();
+    private Set<BillParticipant> participants = new HashSet<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "resto_id", nullable = false)

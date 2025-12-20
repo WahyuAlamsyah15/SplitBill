@@ -17,6 +17,7 @@ import com.splitBill.splitBill.model.Bill;
 import com.splitBill.splitBill.model.BillParticipant;
 import com.splitBill.splitBill.repository.BillParticipantRepository;
 import com.splitBill.splitBill.repository.BillRepository;
+import com.splitBill.splitBill.repository.ItemAssignmentRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -26,6 +27,7 @@ public class ParticipantService {
 
     private final BillParticipantRepository participantRepository;
     private final BillRepository billRepository;
+    private final ItemAssignmentRepository assignmentRepository; // Inject ItemAssignmentRepository
 
     private String getCurrentTenantId() {
         User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -102,6 +104,7 @@ public class ParticipantService {
                 .filter(participant -> participant.getBill().getId().equals(bill.getId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Participant tidak ditemukan pada bill ini"));
 
+        assignmentRepository.deleteAllByParticipantId(p.getId()); // Delete associated item assignments
         participantRepository.delete(p);
     }
 }

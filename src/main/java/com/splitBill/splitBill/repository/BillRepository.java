@@ -30,6 +30,10 @@ public interface BillRepository extends JpaRepository<Bill, UUID> {
 
     Optional<Bill> findByIdAndTenantId(UUID id, String tenantId);
 
+    @Query("SELECT b FROM Bill b LEFT JOIN FETCH b.items LEFT JOIN FETCH b.participants WHERE b.id = :id AND b.tenantId = :tenantId")
+    Optional<Bill> findBillWithDetailsByIdAndTenantId(@Param("id") UUID id, @Param("tenantId") String tenantId);
+
+
     boolean existsByResto(Resto resto);
 
     long countByResto_Id(UUID restoId);

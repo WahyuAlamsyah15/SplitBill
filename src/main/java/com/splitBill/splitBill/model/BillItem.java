@@ -3,6 +3,7 @@ package com.splitBill.splitBill.model;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.EqualsAndHashCode;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -13,6 +14,7 @@ import java.util.UUID;
 @Table(name = "bill_items")
 @Data
 @NoArgsConstructor
+@EqualsAndHashCode(exclude = "bill") // Exclude 'bill' from equals/hashCode
 public class BillItem {
 
     @Id

@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.math.MathContext;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -115,7 +116,7 @@ public class BillService {
     @Transactional(readOnly = true)
     public SplitResultResponse calculateSplit(String billId) {
         String tenantId = getCurrentTenantId();
-        Bill bill = billRepository.findByIdAndTenantId(UUID.fromString(billId), tenantId)
+        Bill bill = billRepository.findBillWithDetailsByIdAndTenantId(UUID.fromString(billId), tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Bill tidak ditemukan"));
 
         List<ItemAssignment> assignments = assignmentRepository.findAll().stream()
@@ -137,61 +138,99 @@ public class BillService {
         }
 
         Map<String, BigDecimal> personSubtotal = new HashMap<>();
-        BigDecimal totalItems = BigDecimal.ZERO;
+        BigDecimal totalItemsRaw = BigDecimal.ZERO; // Sum of original item prices * quantity
 
         for (BillItem item : bill.getItems()) {
-            int totalParts = itemTotalParts.getOrDefault(item.getId(), 0);
-            if (totalParts == 0) continue;
+            totalItemsRaw = totalItemsRaw.add(item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
 
-            BigDecimal pricePerPart = item.getPrice().divide(BigDecimal.valueOf(totalParts), 2, RoundingMode.HALF_UP);
+            int totalParts = itemTotalParts.getOrDefault(item.getId(), 0);
+            if (totalParts == 0) {
+                continue;
+            }
+
+            // Calculate price per part more precisely based on item's total value
+            BigDecimal itemTotalValue = item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
+            BigDecimal pricePerPart = itemTotalValue.divide(BigDecimal.valueOf(totalParts), MathContext.DECIMAL128);
 
             Map<UUID, Integer> personParts = personPartsPerItem.getOrDefault(item.getId(), new HashMap<>());
             for (BillParticipant p : bill.getParticipants()) {
                 int parts = personParts.getOrDefault(p.getId(), 0);
                 BigDecimal amount = pricePerPart.multiply(BigDecimal.valueOf(parts));
-                personSubtotal.merge(p.getName(), amount, BigDecimal::add);
-                totalItems = totalItems.add(amount);
+                personSubtotal.merge(p.getId().toString(), amount, BigDecimal::add); // Use participant ID as key
             }
         }
+        
+        // totalItemsDistributed is the sum of what has been distributed to participants.
+        // This is the base for proportional distribution of tax and service among participants.
+        BigDecimal totalItemsDistributed = personSubtotal.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // Calculate Tax
+        // Calculate Tax based on totalItemsDistributed (only assigned items)
         BigDecimal totalTax;
         if (bill.getTaxType() == FeeType.PERCENT) {
-            totalTax = totalItems.multiply(bill.getTaxValue()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+            totalTax = totalItemsDistributed.multiply(bill.getTaxValue()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
         } else { // FeeType.AMOUNT
             totalTax = bill.getTaxValue();
         }
 
-        // Calculate Service
+        // Calculate Service based on totalItemsDistributed (only assigned items)
         BigDecimal totalService;
         if (bill.getServiceType() == FeeType.PERCENT) {
-            totalService = totalItems.multiply(bill.getServiceValue()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+            totalService = totalItemsDistributed.multiply(bill.getServiceValue()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
         } else { // FeeType.AMOUNT
             totalService = bill.getServiceValue();
         }
 
-        BigDecimal grandTotal = totalItems.add(totalTax).add(totalService);
+        BigDecimal grandTotal = totalItemsDistributed.add(totalTax).add(totalService).setScale(2, RoundingMode.HALF_UP);
 
         List<Map<String, Object>> results = new ArrayList<>();
+        
+        // Use LinkedHashMap to maintain insertion order for consistent rounding distribution
+        Map<BillParticipant, BigDecimal> participantFinalAmounts = new LinkedHashMap<>();
+
+        // Calculate each participant's base amount
         for (BillParticipant p : bill.getParticipants()) {
-            BigDecimal subtotal = personSubtotal.getOrDefault(p.getName(), BigDecimal.ZERO);
-            
-            // Distribute tax and service proportionally by subtotal
-            BigDecimal personTax = totalItems.compareTo(BigDecimal.ZERO) > 0
-                    ? totalTax.multiply(subtotal).divide(totalItems, 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
-            BigDecimal personService = totalItems.compareTo(BigDecimal.ZERO) > 0
-                    ? totalService.multiply(subtotal).divide(totalItems, 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
+            BigDecimal subtotal = personSubtotal.getOrDefault(p.getId().toString(), BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+            participantFinalAmounts.put(p, subtotal);
+        }
 
-            BigDecimal total = subtotal.add(personTax).add(personService).setScale(0, RoundingMode.HALF_UP);
+        // Distribute totalTax and totalService proportionally based on subtotal
+        if (totalItemsDistributed.compareTo(BigDecimal.ZERO) > 0) {
+            for (Map.Entry<BillParticipant, BigDecimal> entry : participantFinalAmounts.entrySet()) {
+                BillParticipant p = entry.getKey();
+                BigDecimal currentSubtotal = entry.getValue();
 
+                BigDecimal personTax = totalTax.multiply(currentSubtotal).divide(totalItemsDistributed, 2, RoundingMode.HALF_UP);
+                BigDecimal personService = totalService.multiply(currentSubtotal).divide(totalItemsDistributed, 2, RoundingMode.HALF_UP);
+                
+                participantFinalAmounts.put(p, currentSubtotal.add(personTax).add(personService).setScale(2, RoundingMode.HALF_UP));
+            }
+        }
+
+        // Adjust for rounding differences in totalTax and totalService
+        BigDecimal sumOfParticipantAmounts = BigDecimal.ZERO;
+        for (BigDecimal amount : participantFinalAmounts.values()) {
+            sumOfParticipantAmounts = sumOfParticipantAmounts.add(amount);
+        }
+
+        BigDecimal difference = grandTotal.subtract(sumOfParticipantAmounts);
+
+        // Distribute the difference due to rounding to the first participant
+        if (difference.compareTo(BigDecimal.ZERO) != 0 && !participantFinalAmounts.isEmpty()) {
+            BillParticipant firstParticipant = participantFinalAmounts.keySet().iterator().next();
+            BigDecimal currentAmount = participantFinalAmounts.get(firstParticipant);
+            participantFinalAmounts.put(firstParticipant, currentAmount.add(difference));
+        }
+
+        // Populate results list
+        for (Map.Entry<BillParticipant, BigDecimal> entry : participantFinalAmounts.entrySet()) {
             Map<String, Object> map = new HashMap<>();
-            map.put("participant", p.getName());
-            map.put("amountToPay", total);
+            map.put("participant", entry.getKey().getName());
+            map.put("amountToPay", entry.getValue().setScale(2, RoundingMode.HALF_UP));
             results.add(map);
         }
 
         SplitResultResponse resp = new SplitResultResponse();
-        resp.setGrandTotal(grandTotal.setScale(0, RoundingMode.HALF_UP));
+        resp.setGrandTotal(grandTotal);
         resp.setResults(results);
         return resp;
     }
@@ -245,6 +284,7 @@ public class BillService {
                         ir.setSubtotal(item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
                         return ir;
                     })
+                    .sorted(Comparator.comparing(ItemResponse::getName)) // Add sorting for consistent test results if using Set
                     .collect(Collectors.toList());
             res.setItems(itemResponses);
         }

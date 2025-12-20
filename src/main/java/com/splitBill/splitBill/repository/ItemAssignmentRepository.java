@@ -18,4 +18,9 @@ public interface ItemAssignmentRepository extends JpaRepository<ItemAssignment, 
     @Transactional
     @Query("DELETE FROM ItemAssignment ia WHERE ia.billItem.bill.id = :billId")
     void deleteAllByBillId(UUID billId);
+
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM ItemAssignment ia WHERE ia.participant.id = :participantId")
+    void deleteAllByParticipantId(UUID participantId);
 }
