@@ -43,6 +43,8 @@ public class EmailService {
         String fromEmailAddress = "wahyualamsyahjk06gmail.com";
         String fromEmailName = "SplitBill App";
 
+        System.out.println("Using Mailjet API Key starting with: " + mailjetApiKey.substring(0, Math.min(mailjetApiKey.length(), 4)));
+
         ClientOptions options = ClientOptions.builder()
                 .apiKey(mailjetApiKey)
                 .apiSecretKey(mailjetSecretKey)
