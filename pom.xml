@@ -96,6 +96,11 @@
 			<groupId>org.springframework.session</groupId>
 			<artifactId>spring-session-data-redis</artifactId>
 		</dependency>
+        <dependency>
+            <groupId>com.mailjet</groupId>
+            <artifactId>mailjet-client</artifactId>
+            <version>5.2.5</version>
+        </dependency>
         <!-- Mail -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
