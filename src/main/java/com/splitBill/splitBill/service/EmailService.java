@@ -40,7 +40,7 @@ public class EmailService {
         }
 
         // IMPORTANT: Replace with your verified sender email in Mailjet
-        String fromEmailAddress = "wahyualamsyahjk06gmail.com";
+        String fromEmailAddress = "alamsyahwahyu749@gmail.com";
         String fromEmailName = "SplitBill App";
 
         System.out.println("Using Mailjet API Key starting with: " + mailjetApiKey.substring(0, Math.min(mailjetApiKey.length(), 4)));
